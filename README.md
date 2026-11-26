@@ -133,12 +133,6 @@ El PSI solo señala `monthly_charges` (1.21). El cambio de comportamiento de los
 - El registro usa `mlflow.set_registry_uri("databricks-uc")` y la firma del modelo se infiere con `infer_signature`, requisito de Unity Catalog.
 - Los consumidores cargan `models:/<modelo>@champion`; promover o revertir una versión consiste en reasignar el alias.
 
-## Limitaciones
-
-- La evidencia de ejecución es local. El SQL de Spark (`CREATE OR REPLACE TABLE ... CLUSTER BY`, `TRY_CAST`, `OPTIMIZE`, `DESCRIBE DETAIL`), la lectura desde el Volume, el registro en Unity Catalog y el linaje no se ejecutaron en Databricks al preparar el repositorio.
-- Las predicciones (`telco_predictions`) pasan por pandas en el driver, por lo que Unity Catalog no registra linaje desde `telco_prod`.
-- Free Edition solo ofrece compute serverless, con cuotas diarias, y limita Jobs y endpoints. El proyecto no incluye Model Serving, Jobs programados ni CI/CD.
-- El evento de las semanas 4 a 6 es sintético y no representa un cambio observado en datos de clientes.
 
 ## Licencia
 
