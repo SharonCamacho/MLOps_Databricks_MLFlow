@@ -54,6 +54,8 @@
   .muted { color: var(--ink-3); }
   .small { font-size: 28px; color: var(--ink-3); }
   strong { color: var(--ink); font-weight: 700; }
+  a.link { color: var(--mlflow-dark); text-decoration: none; font-family: var(--mono); font-size: .92em; }
+  a.link:hover { text-decoration: underline; }
   code, .mono { font-family: var(--mono); }
 
   .stack > * + * { margin-top: 36px; }
@@ -612,10 +614,16 @@ model.<span class="f">fit</span>(X_train, y_train)
     <h1 style="margin-top:40px; font-size:92px;">Entrenar es fácil.</h1>
     <h1 class="accent" style="font-size:92px;">El trabajo empieza en producción.</h1>
     <p class="lead" style="margin-top:36px; font-size:34px;">Notebooks, datos y código: <span class="mono" style="color:var(--mlflow-dark);">github.com/SharonCamacho/MLOps_Databricks_MLFlow</span></p>
-    <h2 style="margin-top:44px; font-size:84px; color:var(--ink);">Gracias</h2>
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; width:100%; margin-top:44px;">
+      <h2 style="font-size:84px; color:var(--ink);">Gracias</h2>
+      <div style="font-size:30px; line-height:1.7; color:var(--ink-2);">
+        <div><strong>Ana Maria Lopez</strong> · <a class="link" href="https://www.linkedin.com/in/amlopez81/" target="_blank" rel="noopener">linkedin.com/in/amlopez81</a></div>
+        <div><strong>Sharon Camacho</strong> · <a class="link" href="https://www.linkedin.com/in/sharoncamachog/" target="_blank" rel="noopener">linkedin.com/in/sharoncamachog</a></div>
+      </div>
+    </div>
   </div>
   <aside class="notes">
-    <p>Entrenar es fácil. El trabajo empieza en producción. Los notebooks, los datos y el código están en el repositorio. Gracias.</p>
+    <p>Entrenar es fácil. El trabajo empieza en producción. Los notebooks, los datos y el código están en el repositorio, y nuestros LinkedIn están en pantalla. Gracias.</p>
   </aside>
 </section>
 
@@ -741,7 +749,7 @@ model.<span class="f">fit</span>(X_train, y_train)
     else if (k === 'f' || k === 'F') { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
   });
   document.addEventListener('click', function (e) {
-    if (e.target.closest('#notes')) return;
+    if (e.target.closest('#notes') || e.target.closest('a')) return;
     if (e.clientX > window.innerWidth / 2) go(idx + 1); else go(idx - 1);
   });
   var tx = null;

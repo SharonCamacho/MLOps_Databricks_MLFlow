@@ -140,6 +140,10 @@ El PSI solo señala `monthly_charges` (1.21). El cambio de comportamiento de los
 - El registro usa `mlflow.set_registry_uri("databricks-uc")` y la firma del modelo se infiere con `infer_signature`, requisito de Unity Catalog.
 - Los consumidores cargan `models:/<modelo>@champion`; promover o revertir una versión consiste en reasignar el alias.
 
+## Autoras
+
+- Ana Maria Lopez: [LinkedIn](https://www.linkedin.com/in/amlopez81/)
+- Sharon Camacho: [LinkedIn](https://www.linkedin.com/in/sharoncamachog/)
 
 ## Licencia
 
