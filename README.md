@@ -36,14 +36,21 @@ El dataset es una captura sin dimensión temporal. Para simular producción, el 
 .
 ├── data/
 │   └── Telco_customer_churn.csv
+├── img/                      # capturas de Databricks y logos usados en la presentación
 ├── notebooks/
 │   ├── 01_carga_datos_telco.py
 │   └── 02_mlops_telco.py
+├── presentacion/
+│   └── charla_mlops.html
 ├── LICENSE
 └── README.md
 ```
 
 Los notebooks están en formato fuente de Databricks (`.py` con celdas `# COMMAND ----------`) y se importan desde *Workspace → Import*.
+
+## Presentación
+
+[`presentacion/charla_mlops.html`](presentacion/charla_mlops.html) es una presentación en un solo archivo HTML (se abre en el navegador, sin servidor). Teclas: `←` `→` para navegar, `N` para ver las notas del orador, `T` para el cronómetro, `D` para ir a la slide de demo, `B` para las slides de respaldo y `F` para pantalla completa. Usa los logos y capturas de la carpeta `img/` y carga la tipografía DM Sans desde Google Fonts si hay conexión.
 
 ## Requisitos
 

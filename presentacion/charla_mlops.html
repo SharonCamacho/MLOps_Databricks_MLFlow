@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MLOps en Databricks con MLflow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F9F7F4;          /* Databricks oat light */
+    --surface: #FFFFFF;
+    --oat: #EEEDE9;
+    --oat-2: #E3E0DA;
+    --ink: #1B3139;         /* Databricks navy */
+    --ink-2: #4A5F67;
+    --ink-3: #7B8A91;
+    --lava: #FF3621;        /* Databricks lava */
+    --lava-dark: #BD2B26;
+    --lava-tint: #FFEDEA;
+    --maroon: #801C17;
+    --mlflow: #0194E2;      /* MLflow blue */
+    --mlflow-dark: #0B6FB0;
+    --mlflow-light: #43C9ED;
+    --mlflow-tint: #E6F4FB;
+    --green: #00875A;
+    --font: "DM Sans", "Helvetica Neue", Arial, sans-serif;
+    --mono: "DM Mono", "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); overflow: hidden; }
+
+  /* Escenario fijo 1920x1080, escalado al tamaño de la ventana */
+  #stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: center center; background: var(--bg); }
+  .slide { position: absolute; inset: 0; display: none; padding: 110px 140px 120px; flex-direction: column; justify-content: center; }
+  .slide.active { display: flex; animation: fade .25s ease; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+  .kicker { position: absolute; top: 56px; left: 140px; font-size: 22px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--lava-dark); }
+  .kicker.mlflow { color: var(--mlflow-dark); }
+  .footer { position: absolute; left: 140px; right: 140px; bottom: 44px; display: flex; align-items: center; justify-content: space-between; color: var(--ink-3); font-size: 20px; }
+  .footer .logos { display: flex; align-items: center; gap: 36px; }
+  .footer .logos img:nth-child(1) { height: 26px; }
+  .footer .logos img:nth-child(2) { height: 30px; }
+
+  h1 { font-size: 104px; line-height: 1.04; font-weight: 700; letter-spacing: -.02em; }
+  h2 { font-size: 76px; line-height: 1.1; font-weight: 700; letter-spacing: -.015em; max-width: 1500px; }
+  h3 { font-size: 40px; line-height: 1.2; font-weight: 700; }
+  p, li { font-size: 38px; line-height: 1.4; color: var(--ink-2); }
+  .lead { font-size: 46px; line-height: 1.35; color: var(--ink-2); max-width: 1400px; }
+  .accent { color: var(--lava); }
+  .accent-ml { color: var(--mlflow); }
+  .muted { color: var(--ink-3); }
+  .small { font-size: 28px; color: var(--ink-3); }
+  strong { color: var(--ink); font-weight: 700; }
+  code, .mono { font-family: var(--mono); }
+
+  .stack > * + * { margin-top: 36px; }
+  .row { display: flex; gap: 48px; align-items: stretch; }
+  .col { flex: 1; min-width: 0; }
+  .center { align-items: center; text-align: center; }
+
+  .card { background: var(--surface); border: 2px solid var(--oat-2); border-radius: 20px; padding: 40px 44px; }
+  .card.ml { border-color: var(--mlflow); background: var(--mlflow-tint); }
+  .card.db { border-color: var(--lava); background: var(--lava-tint); }
+  .card h3 { margin-bottom: 14px; }
+  .card p { font-size: 32px; }
+  .tag { display: inline-block; font-size: 22px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 8px 18px; border-radius: 999px; background: var(--oat); color: var(--ink-2); }
+  .tag.ml { background: var(--mlflow); color: #fff; }
+  .tag.db { background: var(--lava); color: #fff; }
+
+  .bignum { font-size: 400px; line-height: .9; font-weight: 700; letter-spacing: -.04em; }
+  .shot { background: var(--surface); border: 2px solid var(--oat-2); border-radius: 16px; padding: 16px; box-shadow: 0 8px 28px rgba(27,49,57,.08); }
+  .shot img { display: block; max-width: 100%; border-radius: 8px; }
+  .shot .cap { margin-top: 12px; font-size: 24px; color: var(--ink-3); }
+
+  /* Código */
+  pre.code { background: var(--surface); border: 2px solid var(--oat-2); border-left: 8px solid var(--mlflow); border-radius: 16px; padding: 36px 44px; font-family: var(--mono); font-size: 33px; line-height: 1.6; color: var(--ink); overflow: hidden; }
+  pre.code .c { color: var(--ink-3); }
+  pre.code .k { color: var(--lava-dark); }
+  pre.code .f { color: var(--mlflow-dark); }
+  pre.code .s { color: var(--green); }
+
+  .list-num { list-style: none; counter-reset: n; }
+  .list-num li { counter-increment: n; display: flex; gap: 36px; align-items: baseline; font-size: 56px; line-height: 1.25; color: var(--ink); padding: 22px 0; border-bottom: 2px solid var(--oat-2); }
+  .list-num li::before { content: counter(n); font-weight: 700; color: var(--lava); width: 60px; flex: none; }
+  .list-num.ml li::before { color: var(--mlflow); }
+
+  table.cue { width: 100%; border-collapse: collapse; font-size: 27px; }
+  table.cue th { text-align: left; font-size: 20px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); padding: 0 16px 10px; border-bottom: 2px solid var(--ink); }
+  table.cue td { padding: 11px 16px; border-bottom: 1px solid var(--oat-2); color: var(--ink-2); vertical-align: top; }
+  table.cue td.t { font-family: var(--mono); color: var(--lava-dark); white-space: nowrap; width: 110px; }
+  table.cue tr.group td { background: var(--oat); font-weight: 700; color: var(--ink); font-size: 24px; letter-spacing: .06em; text-transform: uppercase; }
+  table.cue tr.group.ml td { background: var(--mlflow-tint); color: var(--mlflow-dark); }
+
+  /* Diapositiva de demo */
+  .slide.demo { background: var(--lava-tint); }
+  .slide.demo::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 24px; background: var(--lava); }
+  .demo-badge { display: inline-flex; align-items: center; gap: 18px; background: var(--lava); color: #fff; font-weight: 700; font-size: 34px; letter-spacing: .1em; text-transform: uppercase; padding: 14px 30px; border-radius: 12px; }
+
+  svg text { font-family: var(--font); fill: var(--ink); }
+  svg .mono { font-family: var(--mono); }
+
+  /* Interfaz de la presentación */
+  #progress { position: fixed; left: 0; right: 0; bottom: 0; height: 8px; background: var(--oat-2); z-index: 10; }
+  #progress .bar { height: 100%; background: var(--ink); transition: width .2s; }
+  #progress .mark { position: absolute; top: -6px; width: 6px; height: 20px; background: var(--lava); border-radius: 2px; }
+  #notes { position: fixed; left: 0; right: 0; bottom: 8px; max-height: 34vh; overflow: auto; background: rgba(255,255,255,.97); border-top: 4px solid var(--mlflow); padding: 16px 32px 20px; font-size: 19px; line-height: 1.5; color: var(--ink); z-index: 9; display: none; }
+  #notes.on { display: block; }
+  #notes .meta { font-family: var(--mono); font-size: 15px; color: var(--lava-dark); margin-bottom: 6px; }
+  #notes p { font-size: 19px; color: var(--ink); max-width: 1200px; line-height: 1.5; }
+  #notes p + p { margin-top: 8px; }
+  #help { position: fixed; right: 16px; top: 12px; font-size: 13px; color: var(--ink-3); z-index: 10; font-family: var(--mono); }
+  aside.notes { display: none; }
+  @media print { html, body { overflow: visible; } #stage { position: static; transform: none !important; } .slide { display: flex !important; position: relative; height: 1080px; page-break-after: always; } #progress, #notes, #help { display: none; } }
+</style>
+</head>
+<body>
+<div id="help">← → navegar · N notas · T cronómetro · D demo · B respaldo · F pantalla completa</div>
+
+<div id="stage">
+
+<!-- ============ PARTE 1 · PROBLEMA ============ -->
+
+<section class="slide" data-act="Portada" data-time="0:00 – 0:30">
+  <div class="stack">
+    <div style="display:flex; align-items:center; gap:56px;">
+      <img src="../img/logos/databricks.png" alt="Databricks" style="height:56px;">
+      <img src="../img/logos/mlflow.png" alt="MLflow" style="height:64px;">
+    </div>
+    <h1 style="margin-top:72px;">MLOps en Databricks</h1>
+    <h2 class="accent" style="font-size:64px; max-width:1500px;">Entrenar es fácil, el verdadero trabajo empieza en producción</h2>
+    <p class="small" style="margin-top:56px;">Ana Maria Lopez · Sharon Camacho</p>
+  </div>
+  <aside class="notes">
+    <p>Buenas. Hoy voy a hablar de lo que pasa con un modelo después de entrenarlo, usando MLflow y Databricks.</p>
+    <p>El ejemplo es un modelo de churn para una telco, y vamos a verlo funcionar en Databricks Free Edition.</p>
+  </aside>
+</section>
+
+<section class="slide" data-act="Parte 1 · El problema" data-time="0:30 – 1:15">
+  <div class="kicker">Parte 1 · El problema</div>
+  <div class="stack">
+    <h2>Entrenar toma minutos. El modelo trabaja durante meses.</h2>
+    <div style="margin-top:56px;">
+      <div style="display:flex; align-items:center; gap:32px;">
+        <div style="width:320px; font-size:34px; font-weight:700; color:var(--ink);">Entrenar</div>
+        <div style="width:90px; height:64px; background:var(--lava); border-radius:10px;"></div>
+        <div style="font-size:32px; color:var(--ink-2);">unos minutos</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:32px; margin-top:36px;">
+        <div style="width:320px; font-size:34px; font-weight:700; color:var(--ink);">En producción</div>
+        <div style="flex:1; height:64px; background:var(--mlflow); border-radius:10px; display:flex; align-items:center; padding-left:32px; color:#fff; font-size:30px; font-weight:500;">los datos cambian, se publican versiones nuevas, otros sistemas consumen el modelo</div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>Entrenar un modelo toma minutos. Pero después ese modelo trabaja durante meses.</p>
+    <p>En ese tiempo cambian los datos, se publican versiones nuevas y otros sistemas empiezan a depender de sus predicciones. El trabajo está en esa segunda barra.</p>
+  </aside>
+</section>
+
+<section class="slide" data-act="Parte 1 · El problema" data-time="1:15 – 2:15">
+  <div class="kicker">Parte 1 · El problema</div>
+  <div class="stack">
+    <h2>Con el modelo en producción, hay tres preguntas por responder</h2>
+    <ol class="list-num" style="margin-top:56px;">
+      <li>¿Qué datos, código y parámetros lo produjeron?</li>
+      <li>¿Qué versión está sirviendo ahora?</li>
+      <li>¿Sigue funcionando hoy?</li>
+    </ol>
+  </div>
+  <aside class="notes">
+    <p>Con el modelo en producción, aparecen tres preguntas que alguien va a hacer tarde o temprano.</p>
+    <p>Primero: qué datos, código y parámetros produjeron este modelo. Segundo: qué versión está sirviendo ahora. Tercero: si sigue funcionando hoy.</p>
+    <p>Con el notebook solo, ninguna de las tres tiene respuesta. La charla va sobre cómo responderlas.</p>
+  </aside>
+</section>
+
+<section class="slide" data-act="Parte 1 · El problema" data-time="2:15 – 3:00">
+  <div class="kicker">Parte 1 · El problema</div>
+  <div class="stack">
+    <h2>Entrenar son tres líneas</h2>
+<pre class="code"><span class="c"># 1. Definir el modelo</span>
+model = <span class="f">RandomForestClassifier</span>(n_estimators=<span class="k">100</span>, max_depth=<span class="k">8</span>)
+
+<span class="c"># 2. Entrenar</span>
+model.<span class="f">fit</span>(X_train, y_train)
+
+<span class="c"># 3. Medir</span>
+<span class="f">roc_auc_score</span>(y_test, model.<span class="f">predict_proba</span>(X_test)[:, <span class="k">1</span>])   <span class="c"># 0.86</span></pre>
+    <p class="lead" style="font-size:40px;">El resto del trabajo no aparece en este código.</p>
+  </div>
+  <aside class="notes">
+    <p>Entrenar un modelo son tres líneas: definirlo, ajustarlo y medirlo.</p>
+    <p>Nada de lo que está en este código dice de dónde salieron los datos, quién lo aprobó, ni qué pasa cuando cambian los clientes.</p>
+  </aside>
+</section>
+
+<section class="slide" data-act="Parte 1 · El problema" data-time="3:00 – 4:00">
+  <div class="kicker">Parte 1 · El problema</div>
+  <div class="stack">
+    <h2>Lo que no se ve en un notebook</h2>
+    <svg viewBox="0 0 1200 560" width="1480" role="img" aria-label="Diagrama: entrenar es la parte visible; datos, reproducibilidad, versionado, permisos, despliegue, monitoreo, reentrenamiento y rollback quedan bajo la superficie">
+      <rect x="0" y="170" width="1200" height="390" fill="#E6F4FB"/>
+      <line x1="0" y1="170" x2="1200" y2="170" stroke="#0194E2" stroke-width="3"/>
+      <g transform="translate(120,0)">
+      <polygon points="540,170 600,64 660,170" fill="#FFFFFF" stroke="#FF3621" stroke-width="4"/>
+      <text x="690" y="128" font-size="34" font-weight="700">Entrenar el modelo</text>
+      <polygon points="260,170 940,170 1020,290 950,420 780,540 500,540 290,430 200,290" fill="#FFFFFF" stroke="#4A5F67" stroke-width="3"/>
+      <g font-size="32">
+        <text x="360" y="250">Datos y calidad</text>
+        <text x="360" y="312">Reproducibilidad</text>
+        <text x="360" y="374">Versionado</text>
+        <text x="360" y="436">Permisos y gobierno</text>
+        <text x="680" y="250">Despliegue</text>
+        <text x="680" y="312">Monitoreo</text>
+        <text x="680" y="374">Reentrenamiento</text>
+        <text x="680" y="436">Rollback</text>
+      </g>
+      </g>
+      <text x="30" y="40" font-size="22" font-weight="700" fill="#BD2B26" letter-spacing="2">SOBRE LA SUPERFICIE</text>
+      <text x="30" y="214" font-size="22" font-weight="700" fill="#0B6FB0" letter-spacing="2">BAJO LA SUPERFICIE</text>
+    </svg>
+  </div>
+  <aside class="notes">
+    <p>Entrenar es lo que se ve. Debajo hay datos y su calidad, reproducibilidad, versionado, permisos, despliegue, monitoreo, reentrenamiento y la capacidad de volver atrás.</p>
+    <p>El paper de Google de 2015, "Hidden Technical Debt in Machine Learning Systems", describe esta proporción: el código del modelo es una parte pequeña del sistema.</p>
+  </aside>
+</section>
+
+<section class="slide" data-act="Parte 1 · El problema" data-time="4:00 – 4:45">
+  <div class="kicker">Parte 1 · El caso</div>
+  <div class="stack">
+    <h2>El caso: predecir qué clientes cancelan</h2>
+    <div class="row" style="margin-top:48px;">
+      <div class="card col"><div style="font-size:96px; font-weight:700; color:var(--lava); line-height:1;">7,043</div><p>clientes de una telco</p></div>
+      <div class="card col"><div style="font-size:96px; font-weight:700; color:var(--lava); line-height:1;">26.5 %</div><p>canceló el servicio</p></div>
+      <div class="card col"><div style="font-size:96px; font-weight:700; color:var(--lava); line-height:1;">19</div><p>variables disponibles antes de que cancelen</p></div>
+    </div>
+    <p class="small" style="margin-top:28px;">Dataset: Telco Customer Churn (IBM), publicado en Kaggle. Retención usa el ranking de riesgo para decidir a quién contactar primero.</p>
+  </div>
+  <aside class="notes">
+    <p>El caso es una telco con 7,043 clientes, de los cuales el 26.5 % canceló. Cada cliente tiene demografía, servicios contratados, contrato y facturación.</p>
+    <p>El modelo ordena a los clientes por riesgo para que el equipo de retención sepa a quién contactar primero.</p>
+    <p>El dataset es una captura sin fechas, así que más adelante simulo las semanas de producción. Lo voy a decir cuando llegue ahí.</p>
+  </aside>
+</section>
+
+<!-- ============ PARTE 2 · MLFLOW ============ -->
+
+<section class="slide" data-act="Parte 2 · MLflow" data-time="4:45 – 6:15">
+  <div class="kicker mlflow">Parte 2 · MLflow</div>
+  <div class="stack">
+    <div style="display:flex; align-items:center; gap:40px;">
+      <img src="../img/logos/mlflow.png" alt="MLflow" style="height:84px;">
+      <h2 style="font-size:60px;">Una pieza para cada pregunta</h2>
+    </div>
+    <div class="row" style="margin-top:36px;">
+      <div class="card ml col">
+        <span class="tag ml">Tracking</span>
+        <h3 style="margin-top:22px;">¿Qué lo produjo?</h3>
+        <p>Cada run guarda parámetros, métricas, la tabla de entrada y el modelo.</p>
+      </div>
+      <div class="card ml col">
+        <span class="tag ml">Models + registro</span>
+        <h3 style="margin-top:22px;">¿Qué versión sirve?</h3>
+        <p>Versiones del modelo en Unity Catalog, con alias como <code>@champion</code>.</p>
+      </div>
+      <div class="card ml col">
+        <span class="tag ml">Métricas</span>
+        <h3 style="margin-top:22px;">¿Sigue funcionando?</h3>
+        <p>AUC y PSI por semana, registrados como métricas de un run.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>MLflow es un proyecto open source para gestionar el ciclo de vida de modelos. En Databricks viene integrado, sin instalar nada.</p>
+    <p>Cada pregunta de antes tiene una pieza. Tracking responde qué produjo el modelo. El registro de modelos, con alias, responde qué versión está sirviendo. Y las métricas registradas en producción responden si sigue funcionando.</p>
+    <p>En la demo vamos a usar las tres.</p>
+  </aside>
+</section>
+
+<section class="slide" data-act="Parte 2 · MLflow" data-time="6:15 – 7:30">
+  <div class="kicker mlflow">Parte 2 · MLflow Tracking</div>
+  <div class="row" style="gap:64px; align-items:center;">
+    <div class="col" style="flex:1.25;">
+<pre class="code" style="font-size:25px; padding:32px 36px;"><span class="f">mlflow.sklearn.autolog</span>(log_models=<span class="k">False</span>)
+
+<span class="k">with</span> mlflow.<span class="f">start_run</span>(run_name=<span class="s">"rf_baseline"</span>):
+    mlflow.<span class="f">log_input</span>(dataset, context=<span class="s">"training"</span>)
+    model.<span class="f">fit</span>(X_train, y_train)
+    mlflow.<span class="f">log_metric</span>(<span class="s">"test_auc"</span>, auc)
+    mlflow.sklearn.<span class="f">log_model</span>(
+        model, name=<span class="s">"model"</span>, signature=sig)</pre>
+      <p class="small" style="margin-top:16px;">Código simplificado del notebook 02.</p>
+    </div>
+    <div class="col stack" style="flex:1;">
+      <h3 class="accent-ml">Qué guarda cada run</h3>
+      <ul style="list-style:none;" class="stack">
+        <li><strong>Parámetros y métricas</strong>, con <code>autolog</code></li>
+        <li><strong>Dataset</strong>: la tabla de Unity Catalog</li>
+        <li><strong>Modelo</strong> con firma y entorno</li>
+        <li><strong>Tags</strong>: versión de datos y responsable</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>Esto es lo mínimo para dejar un modelo trazado. autolog registra parámetros y métricas sin escribir código adicional.</p>
+    <p>Dos cosas se agregan a mano: log_input, que enlaza el run con la tabla de Unity Catalog de la que se entrenó, y log_model con firma, que Unity Catalog exige.</p>
+    <p>Con esto, la primera pregunta tiene respuesta en la interfaz de Experiments.</p>
+  </aside>
+</section>
+
+<section class="slide" data-act="Parte 2 · MLflow" data-time="7:30 – 8:45">
+  <div class="kicker mlflow">Parte 2 · Registro y alias</div>
+  <div class="stack">
+    <h2 style="font-size:64px;">El consumidor usa un alias, no un número de versión</h2>
+    <svg viewBox="0 0 1500 470" width="1640" role="img" aria-label="Un consumidor carga el modelo por el alias champion; el alias apunta a una versión y puede moverse a otra">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="18" markerHeight="18" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1B3139"/></marker>
+        <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="18" markerHeight="18" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0194E2"/></marker>
+      </defs>
+      <rect x="20" y="150" width="440" height="150" rx="18" fill="#FFFFFF" stroke="#E3E0DA" stroke-width="3"/>
+      <text x="48" y="200" font-size="34" font-weight="700">Consumidor</text>
+      <text x="48" y="246" font-size="23" class="mono" fill="#4A5F67" style="fill:#4A5F67">models:/…telco_churn_model</text>
+      <text x="48" y="278" font-size="23" class="mono" style="fill:#4A5F67">@champion</text>
+      <line x1="460" y1="225" x2="560" y2="225" stroke="#1B3139" stroke-width="4" marker-end="url(#ar)"/>
+      <rect x="570" y="190" width="250" height="70" rx="12" fill="#1B3139"/>
+      <text x="695" y="237" font-size="34" font-weight="700" text-anchor="middle" style="fill:#fff">@ champion</text>
+      <path d="M820,225 L1000,330" fill="none" stroke="#1B3139" stroke-width="4" marker-end="url(#ar)"/>
+      <path d="M820,225 L1000,120" fill="none" stroke="#0194E2" stroke-width="4" stroke-dasharray="12 10" marker-end="url(#ar2)"/>
+      <rect x="1010" y="70" width="340" height="100" rx="14" fill="#E6F4FB" stroke="#0194E2" stroke-width="3" stroke-dasharray="10 8"/>
+      <text x="1040" y="132" font-size="34" font-weight="700">Versión 3</text>
+      <rect x="1010" y="190" width="340" height="100" rx="14" fill="#FFFFFF" stroke="#E3E0DA" stroke-width="3"/>
+      <text x="1040" y="252" font-size="34" font-weight="700" style="fill:#7B8A91">Versión 2</text>
+      <rect x="1010" y="310" width="340" height="100" rx="14" fill="#FFFFFF" stroke="#1B3139" stroke-width="4"/>
+      <text x="1040" y="372" font-size="34" font-weight="700">Versión 1</text>
+      <text x="20" y="450" font-size="24" style="fill:#4A5F67">Línea continua: versión actual. Discontinua: después de mover el alias.</text>
+    </svg>
+    <p class="lead" style="font-size:40px;">Promover o volver atrás consiste en mover el alias. El código del consumidor no cambia.</p>
+  </div>
+  <aside class="notes">
+    <p>Quien consume el modelo, ya sea un job de inferencia o un endpoint, carga models:/ el nombre del modelo @champion. No sabe qué versión es.</p>
+    <p>Promover una versión nueva es mover el alias. Volver atrás es moverlo de regreso. No hay que modificar ni redesplegar el código del consumidor.</p>
+    <p>En la demo vamos a promover una versión peor a propósito y revertirla.</p>
+  </aside>
+</section>
+
+<section class="slide" data-act="Parte 2 · MLflow" data-time="8:45 – 9:30">
+  <div class="kicker mlflow">Parte 2 · El ciclo completo</div>
+  <div class="stack">
+    <h2 style="font-size:64px;">El ciclo de vida en Databricks</h2>
+    <svg viewBox="0 0 1700 420" width="1640" role="img" aria-label="Ciclo: datos, entrenar, registrar, promover, consumir, monitorear, reentrenar">
+      <defs>
+        <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="18" markerHeight="18" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1B3139"/></marker>
+      </defs>
+      <g font-size="30" font-weight="700">
+        <rect x="10" y="70" width="210" height="180" rx="16" fill="#FFEDEA" stroke="#FF3621" stroke-width="4"/>
+        <text x="115" y="130" text-anchor="middle">Datos</text>
+        <text x="115" y="172" text-anchor="middle" font-size="22" font-weight="400">Unity Catalog</text>
+        <text x="115" y="204" text-anchor="middle" font-size="22" font-weight="400">tablas y Volume</text>
+
+        <rect x="250" y="70" width="210" height="180" rx="16" fill="#E6F4FB" stroke="#0194E2" stroke-width="4"/>
+        <text x="355" y="130" text-anchor="middle">Entrenar</text>
+        <text x="355" y="172" text-anchor="middle" font-size="22" font-weight="400">MLflow</text>
+        <text x="355" y="204" text-anchor="middle" font-size="22" font-weight="400">Tracking</text>
+
+        <rect x="490" y="70" width="210" height="180" rx="16" fill="#E6F4FB" stroke="#0194E2" stroke-width="4"/>
+        <text x="595" y="130" text-anchor="middle">Registrar</text>
+        <text x="595" y="172" text-anchor="middle" font-size="22" font-weight="400">MLflow Models</text>
+        <text x="595" y="204" text-anchor="middle" font-size="22" font-weight="400">+ Unity Catalog</text>
+
+        <rect x="730" y="70" width="210" height="180" rx="16" fill="#E6F4FB" stroke="#0194E2" stroke-width="4"/>
+        <text x="835" y="130" text-anchor="middle">Promover</text>
+        <text x="835" y="172" text-anchor="middle" font-size="22" font-weight="400">Alias</text>
+        <text x="835" y="204" text-anchor="middle" font-size="22" font-weight="400">@champion</text>
+
+        <rect x="970" y="70" width="210" height="180" rx="16" fill="#FFEDEA" stroke="#FF3621" stroke-width="4"/>
+        <text x="1075" y="130" text-anchor="middle">Consumir</text>
+        <text x="1075" y="172" text-anchor="middle" font-size="22" font-weight="400">Inferencia</text>
+        <text x="1075" y="204" text-anchor="middle" font-size="22" font-weight="400">batch</text>
+
+        <rect x="1210" y="70" width="210" height="180" rx="16" fill="#E6F4FB" stroke="#0194E2" stroke-width="4"/>
+        <text x="1315" y="130" text-anchor="middle">Monitorear</text>
+        <text x="1315" y="172" text-anchor="middle" font-size="22" font-weight="400">AUC y PSI</text>
+        <text x="1315" y="204" text-anchor="middle" font-size="22" font-weight="400">en MLflow</text>
+
+        <rect x="1450" y="70" width="210" height="180" rx="16" fill="#E6F4FB" stroke="#0194E2" stroke-width="4"/>
+        <text x="1555" y="130" text-anchor="middle">Reentrenar</text>
+        <text x="1555" y="172" text-anchor="middle" font-size="22" font-weight="400">Nuevo run,</text>
+        <text x="1555" y="204" text-anchor="middle" font-size="22" font-weight="400">nueva versión</text>
+      </g>
+      <g stroke="#1B3139" stroke-width="4" marker-end="url(#a3)">
+        <line x1="222" y1="160" x2="246" y2="160"/>
+        <line x1="462" y1="160" x2="486" y2="160"/>
+        <line x1="702" y1="160" x2="726" y2="160"/>
+        <line x1="942" y1="160" x2="966" y2="160"/>
+        <line x1="1182" y1="160" x2="1206" y2="160"/>
+        <line x1="1422" y1="160" x2="1446" y2="160"/>
+      </g>
+      <path d="M1555,254 C1555,380 355,380 355,258" fill="none" stroke="#1B3139" stroke-width="4" stroke-dasharray="12 10" marker-end="url(#a3)"/>
+      <rect x="10" y="372" width="26" height="26" rx="6" fill="#FFEDEA" stroke="#FF3621" stroke-width="3"/>
+      <text x="48" y="393" font-size="24">Databricks</text>
+      <rect x="190" y="372" width="26" height="26" rx="6" fill="#E6F4FB" stroke="#0194E2" stroke-width="3"/>
+      <text x="228" y="393" font-size="24">MLflow</text>
+    </svg>
+  </div>
+  <aside class="notes">
+    <p>Este es el ciclo completo. Los datos viven en Unity Catalog. MLflow cubre desde el entrenamiento hasta el monitoreo: tracking, registro, alias y métricas. Databricks aporta el almacenamiento gobernado y el cómputo para consumir el modelo.</p>
+    <p>La flecha punteada es lo que distingue producción: cuando el monitoreo detecta un problema, el ciclo vuelve a empezar.</p>
+  </aside>
+</section>
+
+<section class="slide" data-act="Parte 2 · Antes de la demo" data-time="9:30 – 10:15">
+  <div class="kicker">Parte 2 · Antes de la demo</div>
+  <div class="row" style="align-items:center; gap:90px;">
+    <div class="bignum accent" style="font-size:340px;">0.94</div>
+    <div class="stack">
+      <h2 style="font-size:60px;">AUC usando solo la columna <code style="font-size:.85em;">churn_score</code></h2>
+      <p class="lead" style="font-size:40px;">Esa columna no existe cuando el cliente todavía no canceló. Se excluye, junto con <code>churn_reason</code> y <code>cltv</code>.</p>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>Antes de entrenar hay que decidir qué variables se pueden usar. En este dataset, una sola columna, churn_score, da un AUC de 0.94.</p>
+    <p>Esa columna ya contiene información del resultado, y churn_reason solo existe para clientes que ya cancelaron. En producción no estarían disponibles, así que se excluyen.</p>
+    <p>Esto se ve en código en el notebook 01. Ahí empieza la demo.</p>
+  </aside>
+</section>
+
+<!-- ============ DEMO ============ -->
+
+<section class="slide demo" id="demo" data-act="Demo" data-time="10:15 – 22:15" data-demo="1">
+  <div class="stack" style="padding-left:24px;">
+    <div style="display:flex; align-items:center; gap:36px;">
+      <span class="demo-badge">Demo · cambiar a Databricks</span>
+      <span class="small" style="font-size:30px;">12 minutos · notebooks ya ejecutados una vez</span>
+    </div>
+    <table class="cue" style="margin-top:20px;">
+      <tr><th>Min</th><th>Dónde</th><th>Qué se muestra</th></tr>
+      <tr class="group"><td colspan="3">Notebook 01 · carga de datos (3 min)</td></tr>
+      <tr><td class="t">0:00</td><td>Catalog</td><td>Tablas <code>telco_raw → telco_clean → telco_train / telco_prod</code> y el Volume</td></tr>
+      <tr><td class="t">1:00</td><td>Notebook 01</td><td>Fuga de datos: AUC 0.94 con <code>churn_score</code></td></tr>
+      <tr><td class="t">2:00</td><td>Notebook 01</td><td><code>DESCRIBE DETAIL telco_prod</code>: liquid clustering por <code>week</code></td></tr>
+      <tr class="group ml"><td colspan="3">Notebook 02 · MLOps (9 min)</td></tr>
+      <tr><td class="t">3:00</td><td>Paso 1</td><td>Entrenar con <code>autolog</code> y <code>log_input</code></td></tr>
+      <tr><td class="t">4:00</td><td>Experiments</td><td>Comparar los 4 runs</td></tr>
+      <tr><td class="t">5:30</td><td>Paso 3</td><td>Registrar en Unity Catalog, alias <code>@champion</code></td></tr>
+      <tr><td class="t">6:15</td><td>Paso 4</td><td>Promover una versión peor y hacer rollback</td></tr>
+      <tr><td class="t">7:15</td><td>Paso 5</td><td>Inferencia batch con <code>@champion</code></td></tr>
+      <tr><td class="t">8:00</td><td>Paso 6</td><td>Gráfica de AUC y PSI, alerta, reentrenar, promover v3</td></tr>
+      <tr><td class="t">11:00</td><td>Models → v3</td><td>Pestaña Lineage de la versión 3</td></tr>
+    </table>
+    <p class="small">Si algo falla: tecla <strong>B</strong> abre las capturas de respaldo.</p>
+  </div>
+  <aside class="notes">
+    <p><strong>Aquí pasamos a Databricks.</strong> Cambiar de ventana. El notebook 01 ya está ejecutado; el 02 se ejecuta celda por celda en vivo.</p>
+    <p>Frases de apoyo: al entrenar, "esto es lo que ya conocemos, 0.86 de AUC". Al comparar runs, "dentro de tres meses esto responde qué produjo cada modelo". Al hacer el rollback, "volver atrás es una línea y no toca el código del consumidor". Al ver el gráfico, "no hubo errores, el modelo siguió respondiendo".</p>
+    <p>Aclarar en voz alta, antes del paso 6, que las semanas 4 a 6 incluyen un evento simulado.</p>
+    <p>Al terminar, volver a las slides con la flecha derecha.</p>
+  </aside>
+</section>
+
+<!-- ============ PARTE 3 · PRODUCCIÓN ============ -->
+
+<section class="slide" data-act="Parte 3 · Producción" data-time="22:15 – 23:00">
+  <div class="kicker">Parte 3 · Producción</div>
+  <div class="stack">
+    <h2>Semana 4: el AUC pasa de 0.85 a 0.66</h2>
+    <div class="shot" style="width:1500px;">
+      <img src="../img/imagen2.png" alt="AUC en producción por semana y PSI por variable en la semana 6">
+      <div class="cap">Salida del notebook 02, paso 6. Umbral de alerta: 0.80.</div>
+    </div>
+    <p class="small">Las semanas 4 a 6 incluyen un evento simulado: aumento de precios del 25 % y cambio de comportamiento en clientes de fibra.</p>
+  </div>
+  <aside class="notes">
+    <p>Este es el resultado del paso 6. Las semanas 1 a 3 están alrededor de 0.85. En la semana 4 cae a 0.66.</p>
+    <p>El modelo respondió sin errores todas las semanas. Nada falló; solo dejó de predecir bien.</p>
+    <p>Aclaro que el dataset no tiene fechas, así que el evento de las semanas 4 a 6 es simulado: sube el precio un 25 % y cambia el comportamiento de los clientes de fibra con más antigüedad.</p>
+  </aside>
+</section>
+
+<section class="slide" data-act="Parte 3 · Producción" data-time="23:00 – 24:00">
+  <div class="kicker">Parte 3 · Producción</div>
+  <div class="stack">
+    <h2>Se monitorean los datos y el rendimiento</h2>
+    <div class="row">
+      <div class="card ml col">
+        <span class="tag ml">PSI · datos</span>
+        <h3 style="margin-top:20px;">Detecta que <code>monthly_charges</code> cambió</h3>
+        <p>PSI de 1.2 en la semana 6, sin necesitar etiquetas. No detecta el cambio de comportamiento de los clientes de fibra.</p>
+      </div>
+      <div class="card db col">
+        <span class="tag db">AUC · rendimiento</span>
+        <h3 style="margin-top:20px;">Detecta el efecto en el modelo</h3>
+        <p>Necesita etiquetas, que llegan con retraso. Refleja el efecto de cualquier cambio sobre el modelo.</p>
+      </div>
+    </div>
+    <p class="lead" style="font-size:40px;">Cada señal cubre lo que la otra no ve.</p>
+  </div>
+  <aside class="notes">
+    <p>Usé dos señales. El PSI compara la distribución de cada variable contra la de entrenamiento. Señaló monthly_charges con un valor de 1.2, y no necesita etiquetas.</p>
+    <p>Pero el cambio de comportamiento de los clientes de fibra no aparece en ninguna distribución. Solo lo muestra el AUC, que sí necesita etiquetas y llega tarde.</p>
+    <p>Por eso se monitorean ambas.</p>
+  </aside>
+</section>
+
+<section class="slide" data-act="Parte 3 · Producción" data-time="24:00 – 25:00">
+  <div class="kicker mlflow">Parte 3 · Reentrenar y promover</div>
+  <div class="row" style="align-items:center; gap:70px;">
+    <div class="col stack" style="flex:.85;">
+      <h2 style="font-size:58px;">Reentrenar con datos recientes, promover si mejora</h2>
+      <div style="display:flex; align-items:baseline; gap:28px;">
+        <span style="font-size:120px; font-weight:700; color:var(--ink-3); line-height:1;">0.68</span>
+        <span style="font-size:70px; color:var(--ink-3);">→</span>
+        <span style="font-size:120px; font-weight:700; color:var(--lava); line-height:1;">0.86</span>
+      </div>
+      <p class="small" style="font-size:28px;">AUC sobre la semana 6: champion anterior vs. modelo reentrenado con las semanas 4 y 5.</p>
+      <p style="font-size:32px;">Regla de promoción: el nuevo modelo debe superar al champion por más de 0.02 de AUC.</p>
+    </div>
+    <div class="col" style="flex:1.25;">
+      <div class="shot">
+        <img src="../img/image1.png" alt="Versiones del modelo en Unity Catalog; la versión 3 tiene el alias champion" style="width:100%;">
+        <div class="cap">La versión 3 tiene el alias <code>@champion</code>.</div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>Al detectar la caída, el notebook reentrena con las semanas 4 y 5, que ya tienen etiquetas, y evalúa contra la semana 6, que no vio.</p>
+    <p>El champion anterior tenía 0.68 en esa semana; el modelo nuevo, 0.86. Como supera el umbral de más de 0.02, se registra como versión 3 y recibe el alias champion.</p>
+    <p>La regla de promoción es explícita y queda en el código. Nadie tiene que decidir a mano.</p>
+  </aside>
+</section>
+
+<section class="slide" data-act="Parte 3 · Producción" data-time="25:00 – 25:45">
+  <div class="kicker mlflow">Parte 3 · Linaje</div>
+  <div class="row" style="align-items:center; gap:70px;">
+    <div class="col stack" style="flex:.8;">
+      <h2 style="font-size:64px;">El origen de cada versión queda registrado</h2>
+      <p style="font-size:36px;">La versión 3 muestra, aguas arriba, la tabla <code>telco_recent</code> y el notebook <code>02_mlops_telco</code>.</p>
+      <p class="small">Unity Catalog guarda la relación porque MLflow registra la tabla con <code>log_input</code>.</p>
+    </div>
+    <div class="col" style="flex:1.2;">
+      <div class="shot">
+        <img src="../img/imagen5.png" alt="Pestaña Lineage de la versión 3 del modelo: telco_recent y el notebook 02_mlops_telco aguas arriba">
+        <div class="cap">Unity Catalog → Models → telco_churn_model → versión 3 → Lineage.</div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>La versión 3 tiene su origen registrado: la tabla telco_recent y el notebook que la entrenó.</p>
+    <p>Esto responde la primera pregunta del inicio sin documentación aparte. Unity Catalog lo guarda porque MLflow registró la tabla con log_input.</p>
+  </aside>
+</section>
+
+<section class="slide" data-act="Parte 3 · Producción" data-time="25:45 – 26:15">
+  <div class="kicker mlflow">Parte 3 · Reproducibilidad</div>
+  <div class="row" style="align-items:center; gap:60px;">
+    <div class="col" style="flex:1.3;">
+      <div class="shot"><img src="../img/imagen3.png" alt="Métricas de la versión 3: test_auc 0.8619 y su run de origen rf_retrain_recent"></div>
+    </div>
+    <div class="col" style="flex:.55;">
+      <div class="shot"><img src="../img/imagen4.png" alt="Artefactos de la versión 3: MLmodel, conda.yaml, requirements.txt, input_example.json, model.pkl"></div>
+    </div>
+  </div>
+  <p class="lead" style="font-size:38px; margin-top:28px;">Cada versión guarda sus métricas, el run que la produjo y los archivos para recrear el entorno.</p>
+  <aside class="notes">
+    <p>Cada versión guarda las métricas con el run que las produjo, y los artefactos: el modelo, el ejemplo de entrada y los archivos conda.yaml y requirements.txt para recrear el entorno.</p>
+    <p>Si esta slide sobra por tiempo, se puede omitir.</p>
+  </aside>
+</section>
+
+<section class="slide" data-act="Cierre" data-time="26:15 – 27:15">
+  <div class="kicker">Cierre · Lo que falta</div>
+  <div class="stack">
+    <h2>Lo que esta demo no cubre</h2>
+    <div class="row" style="margin-top:20px;">
+      <div class="card col"><h3>Automatización</h3><p>Jobs programados para monitoreo y reentrenamiento.</p></div>
+      <div class="card col"><h3>CI/CD</h3><p>Databricks Asset Bundles y entornos de desarrollo, staging y producción.</p></div>
+      <div class="card col"><h3>Serving</h3><p>Endpoint de inferencia en tiempo real.</p></div>
+    </div>
+    <p class="small" style="margin-top:20px;">La demo cubre el ciclo de vida del modelo. En Databricks Free Edition el cómputo es serverless, con cuotas diarias y funciones limitadas.</p>
+  </div>
+  <aside class="notes">
+    <p>Quiero ser claro con lo que no mostré. La demo cubre el ciclo de vida del modelo, pero el monitoreo y el reentrenamiento los ejecuté a mano.</p>
+    <p>En un entorno productivo irían en Jobs programados, desplegados con Asset Bundles en entornos separados, y con un endpoint de serving si se necesita tiempo real. Free Edition limita varias de esas piezas.</p>
+  </aside>
+</section>
+
+<section class="slide" data-act="Cierre" data-time="27:15 – 28:15">
+  <div class="kicker">Cierre · Tres ideas</div>
+  <div class="stack">
+    <h2>Para llevarse</h2>
+    <ol class="list-num ml" style="margin-top:36px;">
+      <li>Registrar lo que produce cada modelo: datos, parámetros, métricas y código.</li>
+      <li>Consumir el modelo por alias, no por número de versión.</li>
+      <li>Medir el modelo después de desplegarlo: datos y rendimiento.</li>
+    </ol>
+  </div>
+  <aside class="notes">
+    <p>Tres ideas. Primero, registrar lo que produce cada modelo. Segundo, consumirlo por alias para poder promover y revertir sin tocar código. Tercero, medirlo después de desplegarlo, tanto en datos como en rendimiento.</p>
+  </aside>
+</section>
+
+<section class="slide nofooter" data-act="Cierre" data-time="28:15 – 28:45">
+  <div class="stack" style="align-items:flex-start;">
+    <div style="display:flex; align-items:center; gap:56px;">
+      <img src="../img/logos/databricks.png" alt="Databricks" style="height:52px;">
+      <img src="../img/logos/mlflow.png" alt="MLflow" style="height:60px;">
+    </div>
+    <h1 style="margin-top:40px; font-size:92px;">Entrenar es fácil.</h1>
+    <h1 class="accent" style="font-size:92px;">El trabajo empieza en producción.</h1>
+    <p class="lead" style="margin-top:36px; font-size:34px;">Notebooks, datos y código: <span class="mono" style="color:var(--mlflow-dark);">github.com/SharonCamacho/MLOps_Databricks_MLFlow</span></p>
+    <h2 style="margin-top:44px; font-size:84px; color:var(--ink);">Gracias</h2>
+  </div>
+  <aside class="notes">
+    <p>Entrenar es fácil. El trabajo empieza en producción. Los notebooks, los datos y el código están en el repositorio. Gracias.</p>
+  </aside>
+</section>
+
+
+
+<!-- ============ RESPALDO ============ -->
+
+
+
+<section class="slide" id="backup" data-act="Respaldo" data-time="Respaldo">
+  <div class="kicker">Respaldo · Unity Catalog</div>
+  <div class="row" style="align-items:center; gap:70px;">
+    <div class="col" style="flex:.45;"><div class="shot"><img src="../img/image.png" alt="Catalog Explorer: tablas telco, Volume telco y modelos"></div></div>
+    <div class="col stack" style="flex:1;">
+      <h2 style="font-size:60px;">Objetos creados en <code style="font-size:.8em;">workspace.default</code></h2>
+      <p style="font-size:34px;">Tablas <code>telco_raw</code>, <code>telco_clean</code>, <code>telco_split_keys</code>, <code>telco_train</code>, <code>telco_prod</code>; el Volume <code>telco</code>; y el modelo <code>telco_churn_model</code>.</p>
+    </div>
+  </div>
+  <aside class="notes"><p>Respaldo del paso de Catalog en la demo.</p></aside>
+</section>
+
+<section class="slide" data-act="Respaldo" data-time="Respaldo">
+  <div class="kicker mlflow">Respaldo · Versiones y alias</div>
+  <div class="stack">
+    <h2 style="font-size:60px;">Versiones de <code style="font-size:.8em;">telco_churn_model</code></h2>
+    <div class="shot" style="width:1500px;"><img src="../img/image1.png" alt="Versiones 1, 2 y 3; la versión 3 tiene el alias champion"></div>
+    <p class="small">La versión 2 es el modelo de menor rendimiento usado en el rollback. La versión 3 es el modelo reentrenado.</p>
+  </div>
+  <aside class="notes"><p>Respaldo del paso 3 y 4 de la demo.</p></aside>
+</section>
+
+<section class="slide" data-act="Respaldo" data-time="Respaldo">
+  <div class="kicker mlflow">Respaldo · Monitoreo</div>
+  <div class="stack">
+    <h2 style="font-size:60px;">AUC por semana y PSI por variable</h2>
+    <div class="shot" style="width:1500px;"><img src="../img/imagen2.png" alt="AUC en producción por semana y PSI por variable"></div>
+  </div>
+  <aside class="notes"><p>Respaldo del paso 6 de la demo.</p></aside>
+</section>
+
+<section class="slide" data-act="Respaldo" data-time="Respaldo">
+  <div class="kicker mlflow">Respaldo · Versión 3</div>
+  <div class="row" style="align-items:center; gap:60px;">
+    <div class="col"><div class="shot"><img src="../img/imagen3.png" alt="Métricas de la versión 3"></div></div>
+    <div class="col"><div class="shot"><img src="../img/imagen5.png" alt="Lineage de la versión 3"></div></div>
+  </div>
+  <aside class="notes"><p>Respaldo: métricas y linaje de la versión 3.</p></aside>
+</section>
+
+</div><!-- /stage -->
+
+<div id="notes"><div class="meta"></div><div class="body"></div></div>
+<div id="progress"><div class="bar"></div></div>
+
+<script>
+(function () {
+  var stage = document.getElementById('stage');
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var notesEl = document.getElementById('notes');
+  var progress = document.getElementById('progress');
+  var bar = progress.querySelector('.bar');
+  var idx = 0;
+  var timerStart = null, timerInt = null;
+
+  // Pie de página con logos y número en cada slide (excepto portada y cierre)
+  slides.forEach(function (s, i) {
+    if (i === 0 || s.classList.contains('nofooter')) return;
+    var f = document.createElement('div');
+    f.className = 'footer';
+    f.innerHTML = '<div class="logos"><img src="../img/logos/databricks.png" alt=""><img src="../img/logos/mlflow.png" alt=""></div><div class="num">' + (i + 1) + ' / ' + slides.length + '</div>';
+    s.appendChild(f);
+  });
+
+  // Marca de demo en la barra de progreso
+  slides.forEach(function (s, i) {
+    if (s.dataset.demo) {
+      var m = document.createElement('div');
+      m.className = 'mark';
+      m.style.left = (i / (slides.length - 1) * 100) + '%';
+      progress.appendChild(m);
+    }
+  });
+
+  function fit() {
+    var k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    stage.style.transform = 'translate(-50%, -50%) scale(' + k + ')';
+  }
+
+  function render() {
+    slides.forEach(function (s, i) { s.classList.toggle('active', i === idx); });
+    bar.style.width = (idx / (slides.length - 1) * 100) + '%';
+    var s = slides[idx];
+    var meta = (idx + 1) + '/' + slides.length + ' · ' + s.dataset.act + ' · tiempo previsto ' + s.dataset.time;
+    notesEl.querySelector('.meta').textContent = meta;
+    var n = s.querySelector('aside.notes');
+    notesEl.querySelector('.body').innerHTML = n ? n.innerHTML : '';
+    try { history.replaceState(null, '', '#' + (idx + 1)); } catch (e) {}
+  }
+
+  function go(i) { idx = Math.max(0, Math.min(slides.length - 1, i)); render(); }
+
+  function toggleTimer() {
+    var el = document.getElementById('help');
+    if (timerInt) { clearInterval(timerInt); timerInt = null; timerStart = null; el.textContent = '← → navegar · N notas · T cronómetro · D demo · B respaldo · F pantalla completa'; return; }
+    timerStart = Date.now();
+    timerInt = setInterval(function () {
+      var t = Math.floor((Date.now() - timerStart) / 1000);
+      var m = Math.floor(t / 60), s = t % 60;
+      el.textContent = 'tiempo ' + m + ':' + (s < 10 ? '0' : '') + s + ' · T para reiniciar';
+    }, 1000);
+  }
+
+  document.addEventListener('keydown', function (e) {
+    var k = e.key;
+    if (k === 'ArrowRight' || k === 'PageDown' || k === ' ' || k === 'Enter') { e.preventDefault(); go(idx + 1); }
+    else if (k === 'ArrowLeft' || k === 'PageUp' || k === 'Backspace') { e.preventDefault(); go(idx - 1); }
+    else if (k === 'Home') go(0);
+    else if (k === 'End') go(slides.length - 1);
+    else if (k === 'n' || k === 'N') notesEl.classList.toggle('on');
+    else if (k === 't' || k === 'T') toggleTimer();
+    else if (k === 'd' || k === 'D') go(slides.findIndex(function (s) { return s.id === 'demo'; }));
+    else if (k === 'b' || k === 'B') go(slides.findIndex(function (s) { return s.id === 'backup'; }));
+    else if (k === 'f' || k === 'F') { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+  });
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('#notes')) return;
+    if (e.clientX > window.innerWidth / 2) go(idx + 1); else go(idx - 1);
+  });
+  var tx = null;
+  document.addEventListener('touchstart', function (e) { tx = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', function (e) {
+    if (tx === null) return;
+    var dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) > 50) go(idx + (dx < 0 ? 1 : -1));
+    tx = null;
+  });
+  window.addEventListener('resize', fit);
+
+  var h = parseInt((location.hash || '').replace('#', ''), 10);
+  if (!isNaN(h)) idx = Math.max(0, Math.min(slides.length - 1, h - 1));
+  if (/[?&]notes/.test(location.search)) notesEl.classList.add('on');
+  fit(); render();
+})();
+</script>
+</body>
+</html>
