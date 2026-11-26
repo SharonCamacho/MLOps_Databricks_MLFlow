@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# MLflow local
+mlruns/
+mlartifacts/
+mlflow.db
+
+# Notebooks / IDE
+.ipynb_checkpoints/
+.vscode/
+.idea/
+.DS_Store
+
+# Datos de origen en otros formatos
+*.xlsx
